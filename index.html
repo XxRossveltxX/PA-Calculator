@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora Inteligente de Splits | Payment Arrangements (AU)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            navy: {
+              950: '#060b16',
+              900: '#0b1325',
+              800: '#13203c',
+              700: '#1d3056',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background: radial-gradient(circle at top right, #13203c 0%, #0b1325 45%, #060b16 100%);
+      min-height: 100vh;
+    }
+    /* Custom scrollbar for dark theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b1325;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    /* Input date icon color fix in dark mode */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.85) brightness(0.95) sepia(0.2) saturate(1.5) hue-rotate(180deg);
+      cursor: pointer;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+<body class="text-slate-100 font-sans antialiased selection:bg-sky-500/30 selection:text-sky-200">
+
+  <!-- Toast Notification -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 ease-out flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-950/95 border border-emerald-500/50 text-emerald-200 shadow-2xl">
+    <span id="toastIcon" class="text-lg">✅</span>
+    <span id="toastMessage" class="text-sm font-medium">Resumen copiado al portapapeles</span>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+    
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 mb-6 border-b border-slate-800/80">
+      <div class="flex items-start sm:items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 shrink-0">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              Calculadora Inteligente de Splits
+            </h1>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+              🇦🇺 AU Collections
+            </span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+            Payment Arrangements • Detección automática de facturas intermedias (margen 2 días) y proyección DD/MM/YYYY
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 self-start sm:self-auto">
+        <button id="btnLoadDemo" type="button" class="px-3 py-2 rounded-lg text-xs font-medium bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 border border-slate-700 transition-colors flex items-center gap-1.5">
+          <span>⚡</span> Ejemplo Rápido
+        </button>
+        <button id="btnReset" type="button" class="px-3 py-2 rounded-lg text-xs font-medium bg-slate-900 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 transition-colors flex items-center gap-1.5">
+          <span>↺</span> Limpiar
+        </button>
+      </div>
+    </header>
+
+    <!-- Manager Approval Warning Banner -->
+    <div id="managerApprovalBanner" class="hidden mb-6 rounded-xl bg-amber-500/10 border border-amber-500/40 p-4 text-amber-200 shadow-lg shadow-amber-950/20 transition-all">
+      <div class="flex items-start gap-3">
+        <span class="text-xl leading-none mt-0.5">⚠️</span>
+        <div class="text-sm">
+          <p class="font-semibold text-amber-300">Requiere Aprobación de Supervisor (Manager Approval)</p>
+          <p class="text-amber-200/85 text-xs sm:text-sm mt-0.5">
+            El número de splits seleccionado excede el límite estándar para la frecuencia elegida. Asegúrate de contar con autorización antes de confirmar el acuerdo con el cliente. El texto de nota incluirá automáticamente la etiqueta <span class="font-mono font-semibold underline decoration-amber-400/60">con Manager Approval</span>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- Left Column: Inputs (5 cols) -->
+      <section class="lg:col-span-5 glass-card rounded-2xl border border-slate-800/90 p-5 sm:p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-5 pb-3 border-b border-slate-800">
+          <h2 class="text-base font-semibold text-white flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+            Parámetros del Acuerdo
+          </h2>
+          <span class="text-xs text-slate-400 font-mono">AUD ($)</span>
+        </div>
+
+        <form id="splitCalculatorForm" class="space-y-4" onsubmit="return false;">
+          
+          <!-- 1. Frecuencia de Cuenta -->
+          <div>
+            <label for="frequencySelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              1. Frecuencia de Cuenta
+            </label>
+            <div class="relative">
+              <select id="frequencySelect" class="w-full rounded-xl bg-slate-900/95 border border-slate-700/90 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+                <option value="7">Weekly (7d)</option>
+                <option value="14" selected>Fortnightly (14d)</option>
+                <option value="30">Monthly (30d)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 2. N° Facturas / Splits -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="splitsSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                2. N° Facturas / Splits
+              </label>
+              <span id="splitPolicyBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                Estándar
+              </span>
+            </div>
+            <div class="relative">
+              <select id="splitsSelect" class="w-full rounded-xl bg-slate-900/95 border border-slate-700/90 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+                <!-- Populated dynamically via JS -->
+              </select>
+            </div>
+          </div>
+
+          <!-- 3 & 4. Montos Financieros -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <!-- 3. MMP Regular -->
+            <div>
+              <label for="mmpInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                3. MMP Regular ($)
+              </label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-mono text-sm pointer-events-none">$</span>
+                <input
+                  id="mmpInput"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value="150.00"
+                  class="w-full rounded-xl bg-slate-900/95 border border-slate-700/90 pl-8 pr-3.5 py-2.5 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"
+                />
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">Pago mínimo regular por ciclo</p>
+            </div>
+
+            <!-- 4. Deuda Actual + Late Fees -->
+            <div>
+              <label for="arrearsInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                4. Deuda Actual + Fees ($)
+              </label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-mono text-sm pointer-events-none">$</span>
+                <input
+                  id="arrearsInput"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value="300.00"
+                  class="w-full rounded-xl bg-slate-900/95 border border-slate-700/90 pl-8 pr-3.5 py-2.5 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"
+                />
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">Saldo vencido total hasta hoy</p>
+            </div>
+          </div>
+
+          <!-- 5 & 6. Fechas -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <!-- 5. Fecha Último Pago en Deuda -->
+            <div>
+              <label for="debtDateInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                5. Fecha Último Pago en Deuda
+              </label>
+              <input
+                id="debtDateInput"
+                type="date"
+                class="w-full rounded-xl bg-slate-900/95 border border-slate-700/90 px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"
+              />
+              <p class="text-[11px] text-slate-400 mt-1">Fecha base para facturas intermedias</p>
+            </div>
+
+            <!-- 6. 1ra Fecha de Cobro / Inicio de Split -->
+            <div>
+              <label for="startDateInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                6. 1ra Fecha de Cobro (Inicio)
+              </label>
+              <input
+                id="startDateInput"
+                type="date"
+                class="w-full rounded-xl bg-slate-900/95 border border-slate-700/90 px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition"
+              />
+              <p class="text-[11px] text-slate-400 mt-1">Cuándo inicia el pago del acuerdo</p>
+            </div>
+          </div>
+
+          <!-- Date validation warning (if startDate < debtDate) -->
+          <div id="dateOrderWarning" class="hidden rounded-xl bg-rose-500/10 border border-rose-500/40 p-3 text-xs text-rose-200">
+            ⚠️ La <strong>1ra Fecha de Cobro</strong> es anterior a la <strong>Fecha Último Pago en Deuda</strong>. Verifica las fechas ingresadas.
+          </div>
+
+          <!-- Business Rules Quick Reference -->
+          <div class="pt-3 border-t border-slate-800/80">
+            <div class="rounded-xl bg-slate-900/70 border border-slate-800/90 p-3.5 text-xs text-slate-400 space-y-1.5">
+              <div class="font-semibold text-slate-300 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Regla de Facturas Intermedias (Margen de Gracia: 2 días)
+              </div>
+              <p class="leading-relaxed">
+                Se suman ciclos de <span id="ruleCycleDaysText" class="text-sky-300 font-mono font-semibold">14 días</span> desde la fecha en deuda. Todo ciclo que caiga estrictamente antes de <span class="font-mono text-slate-300">(1ra Fecha de Cobro − 2 días)</span> genera una factura adicional de <span id="ruleMmpText" class="text-slate-200 font-mono">$150.00</span> que se suma al saldo a dividir.
+              </p>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <!-- Right Column: Results, Breakdown, Dates & Copy (7 cols) -->
+      <section class="lg:col-span-7 space-y-6">
+        
+        <!-- Top Financial Breakdown Cards -->
+        <div class="glass-card rounded-2xl border border-slate-800/90 p-5 sm:p-6 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-5 pb-3 border-b border-slate-800">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              Desglose Financiero del Split
+            </h2>
+            <span id="summaryFreqBadge" class="text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-800 text-sky-300 border border-slate-700">
+              Fortnightly (14d) • 3 Splits
+            </span>
+          </div>
+
+          <!-- Primary Hero Metric: Nueva Cuota -->
+          <div class="rounded-2xl bg-gradient-to-br from-sky-500/15 via-indigo-500/10 to-slate-900 border border-sky-500/30 p-5 mb-5">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-sky-300">
+                  Nueva Cuota Calculada (Por Split)
+                </span>
+                <div class="text-3xl sm:text-4xl font-bold font-mono text-white mt-1 tracking-tight" id="newInstallmentDisplay">
+                  $250.00
+                </div>
+                <p class="text-xs text-slate-300 mt-1.5 font-mono" id="installmentFormulaDisplay">
+                  $150.00 (MMP Regular) + $100.00 (Fracción del Split)
+                </p>
+              </div>
+
+              <div class="flex sm:flex-col justify-between sm:items-end gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
+                <div class="text-left sm:text-right">
+                  <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Total a Dividir</span>
+                  <span id="totalToSplitDisplay" class="text-lg font-bold font-mono text-amber-300">$300.00</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[11px] uppercase tracking-wider text-slate-400 block">Retorno a MMP Normal</span>
+                  <span id="returnDateHeroDisplay" class="text-sm font-semibold font-mono text-emerald-300">--/--/----</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3 Sub-cards Breakdown -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3.5">
+              <span class="text-[11px] font-medium uppercase tracking-wider text-slate-400 block">Deuda Inicial (Arrears)</span>
+              <span id="cardInitialDebt" class="text-base font-bold font-mono text-slate-100 mt-1 block">$300.00</span>
+              <span class="text-[11px] text-slate-400 mt-0.5 block">Saldo vencido + Late fees</span>
+            </div>
+
+            <div id="extraInvoicesCard" class="rounded-xl bg-slate-900/90 border border-slate-800 p-3.5 transition-colors">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Facturas Extra</span>
+                <span id="extraInvoicesBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">0 extras</span>
+              </div>
+              <span id="cardExtraAmount" class="text-base font-bold font-mono text-slate-100 mt-1 block">+$0.00</span>
+              <span id="cardExtraSubtext" class="text-[11px] text-slate-400 mt-0.5 block">Sin facturas previas al acuerdo</span>
+            </div>
+
+            <div class="rounded-xl bg-slate-900/90 border border-slate-800 p-3.5">
+              <span class="text-[11px] font-medium uppercase tracking-wider text-slate-400 block">Fracción por Split</span>
+              <span id="cardSplitFraction" class="text-base font-bold font-mono text-sky-300 mt-1 block">+$100.00</span>
+              <span id="cardSplitSubtext" class="text-[11px] text-slate-400 mt-0.5 block">Sumado a cada MMP de $150.00</span>
+            </div>
+          </div>
+
+          <!-- Extra Invoices Alert Box (Shown dynamically when extraInvoices > 0) -->
+          <div id="extraInvoicesAlert" class="hidden mt-4 rounded-xl bg-indigo-500/10 border border-indigo-500/35 p-4 text-xs sm:text-sm text-indigo-100">
+            <div class="flex items-start gap-3">
+              <span class="text-lg leading-none mt-0.5">📌</span>
+              <div class="space-y-1 w-full">
+                <div class="font-semibold text-indigo-200 flex flex-wrap items-center justify-between gap-2">
+                  <span id="extraAlertTitle">Se detectaron facturas intermedias antes del inicio del Split</span>
+                  <span id="extraAlertAmountBadge" class="font-mono text-xs px-2 py-0.5 rounded bg-indigo-500/20 border border-indigo-400/30 text-indigo-200">+$0.00</span>
+                </div>
+                <p id="extraAlertDescription" class="text-indigo-200/80 text-xs leading-relaxed"></p>
+                <div id="extraInvoiceDatesPills" class="flex flex-wrap gap-1.5 pt-1"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Projected Schedule Card -->
+        <div class="glass-card rounded-2xl border border-slate-800/90 p-5 sm:p-6 shadow-xl">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+              Calendario de Fechas Proyectadas (DD/MM/YYYY)
+            </h2>
+            <span id="scheduleCountBadge" class="text-xs font-mono text-slate-400">3 cuotas proyectadas</span>
+          </div>
+
+          <div id="projectedDatesContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+            <!-- Populated via JS -->
+          </div>
+
+          <!-- Return to Regular MMP Banner -->
+          <div class="mt-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-300 font-bold text-sm shrink-0">
+                ✓
+              </span>
+              <div>
+                <span class="text-xs font-semibold text-emerald-200 block">Retorno al MMP Regular Original</span>
+                <span class="text-xs text-slate-300">El cliente vuelve a su pago normal tras liquidar los splits</span>
+              </div>
+            </div>
+            <div class="sm:text-right font-mono pl-10 sm:pl-0">
+              <span id="returnMmpAmountText" class="text-sm font-bold text-emerald-300">$150.00</span>
+              <span class="text-xs text-slate-400 block">a partir del <strong id="returnDateText" class="text-white">--/--/----</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary Note & Copy Button Card -->
+        <div class="glass-card rounded-2xl border border-slate-800/90 p-5 sm:p-6 shadow-xl">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              Resumen de Nota para Cobranza
+            </h2>
+            <span id="templateTypeBadge" class="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+              Plantilla Estándar
+            </span>
+          </div>
+
+          <div class="relative">
+            <div
+              id="summaryTextPreview"
+              class="w-full rounded-xl bg-slate-950/90 border border-slate-800 p-4 text-sm text-slate-200 font-mono leading-relaxed select-all"
+            >
+              <!-- Populated dynamically via JS -->
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <p class="text-xs text-slate-400">
+              El texto se actualiza en tiempo real al modificar cualquier campo.
+            </p>
+            <button
+              id="copySummaryBtn"
+              type="button"
+              class="px-5 py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 active:scale-[0.99] text-white shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2 shrink-0"
+            >
+              <span id="copyBtnIcon">📋</span>
+              <span id="copyBtnText">Copiar Resumen</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // Business Rules Configuration for Split Options per Frequency
+    const SPLIT_RULES = {
+      "7": {
+        name: "Weekly (7d)",
+        cycleDays: 7,
+        defaultSplits: 4,
+        options: [
+          { value: 2, label: "2 Semanas (Estándar)", managerApproval: false },
+          { value: 3, label: "3 Semanas (Estándar)", managerApproval: false },
+          { value: 4, label: "4 Semanas (Estándar)", managerApproval: false },
+          { value: 5, label: "5 Semanas (Estándar)", managerApproval: false },
+          { value: 6, label: "6 Semanas (Estándar)", managerApproval: false },
+          { value: 7, label: "7 Semanas (Estándar)", managerApproval: false },
+          { value: 8, label: "8 Semanas (Estándar)", managerApproval: false },
+          { value: 9, label: "9 Semanas (⚠️ Manager Approval)", managerApproval: true },
+          { value: 10, label: "10 Semanas (⚠️ Manager Approval)", managerApproval: true },
+          { value: 11, label: "11 Semanas (⚠️ Manager Approval)", managerApproval: true },
+          { value: 12, label: "12 Semanas (⚠️ Manager Approval)", managerApproval: true }
+        ]
+      },
+      "14": {
+        name: "Fortnightly (14d)",
+        cycleDays: 14,
+        defaultSplits: 3,
+        options: [
+          { value: 2, label: "2 Facturas (Estándar)", managerApproval: false },
+          { value: 3, label: "3 Facturas (Estándar)", managerApproval: false },
+          { value: 4, label: "4 Facturas (Estándar)", managerApproval: false },
+          { value: 5, label: "5 Facturas (⚠️ Manager Approval)", managerApproval: true },
+          { value: 6, label: "6 Facturas (⚠️ Manager Approval)", managerApproval: true }
+        ]
+      },
+      "30": {
+        name: "Monthly (30d)",
+        cycleDays: 30,
+        defaultSplits: 2,
+        options: [
+          { value: 1, label: "1 Mes - Doble Pago (Estándar)", managerApproval: false },
+          { value: 2, label: "2 Meses (Estándar)", managerApproval: false },
+          { value: 3, label: "3 Meses (⚠️ Manager Approval)", managerApproval: true },
+          { value: 4, label: "4 Meses (⚠️ Manager Approval)", managerApproval: true }
+        ]
+      }
+    };
+
+    // DOM Elements
+    const frequencySelect = document.getElementById('frequencySelect');
+    const splitsSelect = document.getElementById('splitsSelect');
+    const mmpInput = document.getElementById('mmpInput');
+    const arrearsInput = document.getElementById('arrearsInput');
+    const debtDateInput = document.getElementById('debtDateInput');
+    const startDateInput = document.getElementById('startDateInput');
+
+    const managerApprovalBanner = document.getElementById('managerApprovalBanner');
+    const splitPolicyBadge = document.getElementById('splitPolicyBadge');
+    const dateOrderWarning = document.getElementById('dateOrderWarning');
+    const ruleCycleDaysText = document.getElementById('ruleCycleDaysText');
+    const ruleMmpText = document.getElementById('ruleMmpText');
+
+    const summaryFreqBadge = document.getElementById('summaryFreqBadge');
+    const newInstallmentDisplay = document.getElementById('newInstallmentDisplay');
+    const installmentFormulaDisplay = document.getElementById('installmentFormulaDisplay');
+    const totalToSplitDisplay = document.getElementById('totalToSplitDisplay');
+    const returnDateHeroDisplay = document.getElementById('returnDateHeroDisplay');
+
+    const cardInitialDebt = document.getElementById('cardInitialDebt');
+    const extraInvoicesCard = document.getElementById('extraInvoicesCard');
+    const extraInvoicesBadge = document.getElementById('extraInvoicesBadge');
+    const cardExtraAmount = document.getElementById('cardExtraAmount');
+    const cardExtraSubtext = document.getElementById('cardExtraSubtext');
+    const cardSplitFraction = document.getElementById('cardSplitFraction');
+    const cardSplitSubtext = document.getElementById('cardSplitSubtext');
+
+    const extraInvoicesAlert = document.getElementById('extraInvoicesAlert');
+    const extraAlertTitle = document.getElementById('extraAlertTitle');
+    const extraAlertAmountBadge = document.getElementById('extraAlertAmountBadge');
+    const extraAlertDescription = document.getElementById('extraAlertDescription');
+    const extraInvoiceDatesPills = document.getElementById('extraInvoiceDatesPills');
+
+    const scheduleCountBadge = document.getElementById('scheduleCountBadge');
+    const projectedDatesContainer = document.getElementById('projectedDatesContainer');
+    const returnMmpAmountText = document.getElementById('returnMmpAmountText');
+    const returnDateText = document.getElementById('returnDateText');
+
+    const templateTypeBadge = document.getElementById('templateTypeBadge');
+    const summaryTextPreview = document.getElementById('summaryTextPreview');
+    const copySummaryBtn = document.getElementById('copySummaryBtn');
+    const copyBtnIcon = document.getElementById('copyBtnIcon');
+    const copyBtnText = document.getElementById('copyBtnText');
+
+    const btnLoadDemo = document.getElementById('btnLoadDemo');
+    const btnReset = document.getElementById('btnReset');
+    const toastNotification = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+
+    let toastTimer = null;
+
+    // Helper: Parse YYYY-MM-DD safely in local time without timezone shift
+    function parseDateInput(dateStr) {
+      if (!dateStr) return null;
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return null;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day, 12, 0, 0);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Helper: Format Date to YYYY-MM-DD for <input type="date">
+    function toInputDateString(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // Helper: Format Date to DD/MM/YYYY (Australian format)
+    function formatDateAU(dateObj) {
+      if (!dateObj) return '--/--/----';
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const y = dateObj.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+
+    // Helper: Add days to a Date object
+    function addDays(dateObj, days) {
+      const copy = new Date(dateObj.getTime());
+      copy.setDate(copy.getDate() + days);
+      return copy;
+    }
+
+    // Helper: Format currency number cleanly (e.g. 150 or 150.50 -> 2 decimals when needed or standard 2 decimals)
+    function formatAmount(num) {
+      const val = Number.isFinite(num) ? num : 0;
+      return val.toFixed(2);
+    }
+
+    // Populate dynamic Splits options based on selected Frequency
+    function populateSplitsDropdown() {
+      const freqKey = frequencySelect.value;
+      const config = SPLIT_RULES[freqKey] || SPLIT_RULES["14"];
+
+      splitsSelect.innerHTML = '';
+      config.options.forEach((opt) => {
+        const optionEl = document.createElement('option');
+        optionEl.value = String(opt.value);
+        optionEl.textContent = opt.label;
+        if (opt.value === config.defaultSplits) {
+          optionEl.selected = true;
+        }
+        splitsSelect.appendChild(optionEl);
+      });
+    }
+
+    // Core Mathematical Engine
+    function calculateSplits() {
+      const freqKey = frequencySelect.value;
+      const config = SPLIT_RULES[freqKey] || SPLIT_RULES["14"];
+      const cycleDays = config.cycleDays;
+
+      const selectedSplits = parseInt(splitsSelect.value, 10) || config.defaultSplits;
+      const selectedOptionObj = config.options.find(o => o.value === selectedSplits) || config.options[0];
+      const needsManagerApproval = Boolean(selectedOptionObj && selectedOptionObj.managerApproval);
+
+      const mmp = Math.max(0, parseFloat(mmpInput.value) || 0);
+      const arrears = Math.max(0, parseFloat(arrearsInput.value) || 0);
+
+      const debtDate = parseDateInput(debtDateInput.value);
+      const startDate = parseDateInput(startDateInput.value);
+
+      // Update Quick Reference labels
+      ruleCycleDaysText.textContent = `${cycleDays} días`;
+      ruleMmpText.textContent = `$${formatAmount(mmp)}`;
+
+      // 1. Toggle Manager Approval Banner & Policy Badge
+      if (needsManagerApproval) {
+        managerApprovalBanner.classList.remove('hidden');
+        splitPolicyBadge.textContent = '⚠️ Manager Approval';
+        splitPolicyBadge.className = 'text-[11px] font-medium px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/40';
+      } else {
+        managerApprovalBanner.classList.add('hidden');
+        splitPolicyBadge.textContent = 'Estándar';
+        splitPolicyBadge.className = 'text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+      }
+
+      // 2. Intermediate Extra Invoices Calculation
+      // Starting from debtDate, add cycleDays iteratively.
+      // Any cycle falling strictly before startDate (with a 2-day grace margin, i.e., cycleDate < startDate - 2 days)
+      // counts as an "extra generated invoice".
+      let extraInvoicesCount = 0;
+      const extraInvoiceDates = [];
+
+      if (debtDate && startDate) {
+        if (startDate < debtDate) {
+          dateOrderWarning.classList.remove('hidden');
+        } else {
+          dateOrderWarning.classList.add('hidden');
+          const cutoffWithGrace = addDays(startDate, -2);
+          let nextCycleDate = addDays(debtDate, cycleDays);
+          let safetyCounter = 0;
+
+          while (nextCycleDate < cutoffWithGrace && safetyCounter < 120) {
+            extraInvoicesCount++;
+            extraInvoiceDates.push(new Date(nextCycleDate.getTime()));
+            nextCycleDate = addDays(nextCycleDate, cycleDays);
+            safetyCounter++;
+          }
+        }
+      } else {
+        dateOrderWarning.classList.add('hidden');
+      }
+
+      // 3. New Debt to Split & New Installment Amount
+      const extraAmount = extraInvoicesCount * mmp;
+      const totalDebtToSplit = arrears + extraAmount;
+      const splitFraction = totalDebtToSplit / selectedSplits;
+      const newInstallment = mmp + splitFraction;
+
+      // 4. Projected Split Dates & Return Date
+      const projectedDates = [];
+      let returnDate = null;
+
+      if (startDate) {
+        for (let i = 0; i < selectedSplits; i++) {
+          projectedDates.push(addDays(startDate, i * cycleDays));
+        }
+        returnDate = addDays(startDate, selectedSplits * cycleDays);
+      }
+
+      // 5. Update Financial UI Cards
+      summaryFreqBadge.textContent = `${config.name} • ${selectedSplits} ${selectedSplits === 1 ? 'Split' : 'Splits'}`;
+      newInstallmentDisplay.textContent = `$${formatAmount(newInstallment)}`;
+      installmentFormulaDisplay.textContent = `$${formatAmount(mmp)} (MMP Regular) + $${formatAmount(splitFraction)} (Fracción del Split)`;
+      totalToSplitDisplay.textContent = `$${formatAmount(totalDebtToSplit)}`;
+      returnDateHeroDisplay.textContent = returnDate ? formatDateAU(returnDate) : '--/--/----';
+
+      cardInitialDebt.textContent = `$${formatAmount(arrears)}`;
+      cardExtraAmount.textContent = `+$${formatAmount(extraAmount)}`;
+      extraInvoicesBadge.textContent = `${extraInvoicesCount} ${extraInvoicesCount === 1 ? 'extra' : 'extras'}`;
+
+      if (extraInvoicesCount > 0) {
+        extraInvoicesCard.className = 'rounded-xl bg-indigo-950/40 border border-indigo-500/40 p-3.5 transition-colors';
+        extraInvoicesBadge.className = 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-200 border border-indigo-400/30';
+        cardExtraAmount.className = 'text-base font-bold font-mono text-indigo-300 mt-1 block';
+        cardExtraSubtext.textContent = `${extraInvoicesCount} × $${formatAmount(mmp)} previo al acuerdo`;
+
+        extraInvoicesAlert.classList.remove('hidden');
+        extraAlertTitle.textContent = `Se generarán ${extraInvoicesCount} factura(s) adicional(es) previo al inicio del acuerdo`;
+        extraAlertAmountBadge.textContent = `+$${formatAmount(extraAmount)} AUD`;
+        extraAlertDescription.textContent = `Entre el ${formatDateAU(debtDate)} y el inicio del acuerdo (${formatDateAU(startDate)}, con 2 días de gracia), se cumplen ${extraInvoicesCount} ciclo(s) de ${cycleDays} días. Se sumaron $${formatAmount(extraAmount)} a la deuda inicial de $${formatAmount(arrears)}, dando un total a dividir de $${formatAmount(totalDebtToSplit)}.`;
+
+        extraInvoiceDatesPills.innerHTML = '';
+        extraInvoiceDates.forEach((d, idx) => {
+          const pill = document.createElement('span');
+          pill.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono bg-indigo-950/90 text-indigo-200 border border-indigo-500/40';
+          pill.textContent = `Factura Extra #${idx + 1}: ${formatDateAU(d)} ($${formatAmount(mmp)})`;
+          extraInvoiceDatesPills.appendChild(pill);
+        });
+      } else {
+        extraInvoicesCard.className = 'rounded-xl bg-slate-900/90 border border-slate-800 p-3.5 transition-colors';
+        extraInvoicesBadge.className = 'text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300';
+        cardExtraAmount.className = 'text-base font-bold font-mono text-slate-100 mt-1 block';
+        cardExtraSubtext.textContent = 'Sin facturas previas al acuerdo';
+        extraInvoicesAlert.classList.add('hidden');
+      }
+
+      cardSplitFraction.textContent = `+$${formatAmount(splitFraction)}`;
+      cardSplitSubtext.textContent = `$${formatAmount(totalDebtToSplit)} ÷ ${selectedSplits} ${selectedSplits === 1 ? 'factura' : 'facturas'}`;
+
+      // 6. Render Projected Dates List
+      scheduleCountBadge.textContent = `${selectedSplits} ${selectedSplits === 1 ? 'cuota proyectada' : 'cuotas proyectadas'}`;
+      projectedDatesContainer.innerHTML = '';
+
+      if (projectedDates.length > 0) {
+        projectedDates.forEach((d, idx) => {
+          const item = document.createElement('div');
+          item.className = 'rounded-xl bg-slate-900/90 border border-slate-800/90 p-3 flex items-center justify-between';
+          item.innerHTML = `
+            <div class="flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-300 font-mono text-xs font-bold flex items-center justify-center">
+                ${idx + 1}
+              </span>
+              <div>
+                <span class="text-xs font-mono font-semibold text-white block">${formatDateAU(d)}</span>
+                <span class="text-[11px] text-slate-400">Split #${idx + 1}</span>
+              </div>
+            </div>
+            <span class="text-xs font-mono font-bold text-sky-300">$${formatAmount(newInstallment)}</span>
+          `;
+          projectedDatesContainer.appendChild(item);
+        });
+      } else {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'col-span-full rounded-xl bg-slate-900/60 border border-dashed border-slate-800 p-4 text-center text-xs text-slate-400';
+        emptyMsg.textContent = 'Selecciona la 1ra Fecha de Cobro para proyectar el calendario exacto de pagos.';
+        projectedDatesContainer.appendChild(emptyMsg);
+      }
+
+      returnMmpAmountText.textContent = `$${formatAmount(mmp)}`;
+      returnDateText.textContent = returnDate ? formatDateAU(returnDate) : '--/--/----';
+
+      // 7. Build Exact Clipboard Summary Text
+      const formattedDatesList = projectedDates.length > 0
+        ? projectedDates.map(d => formatDateAU(d)).join(', ')
+        : '[Sin fechas definidas]';
+      const formattedReturnDate = returnDate ? formatDateAU(returnDate) : '[Fecha de retorno]';
+      const approvalClause = needsManagerApproval ? ' con Manager Approval' : '';
+
+      let summaryNote = '';
+      if (extraInvoicesCount > 0) {
+        templateTypeBadge.textContent = `Con ${extraInvoicesCount} Factura(s) Extra`;
+        templateTypeBadge.className = 'text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40';
+        summaryNote = `Cuenta con deuda actual de $${formatAmount(arrears)} más ${extraInvoicesCount} factura(s) adicional(es) ($${formatAmount(extraAmount)}) previo al inicio del acuerdo, sumando un total atrasado de $${formatAmount(totalDebtToSplit)}. Se dividió en ${selectedSplits} facturas${approvalClause} resultando en pagos de $${formatAmount(newInstallment)} para las fechas ${formattedDatesList}, regresando a su MMP original de $${formatAmount(mmp)} a partir de la factura del ${formattedReturnDate}.`;
+      } else {
+        templateTypeBadge.textContent = 'Sin Facturas Extra';
+        templateTypeBadge.className = 'text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700';
+        summaryNote = `Quedó con saldo vencido de $${formatAmount(arrears)}, el cual se dividió en las siguientes ${selectedSplits} facturas${approvalClause} resultando en pagos de $${formatAmount(newInstallment)} para las fechas ${formattedDatesList}, regresando a su MMP original de $${formatAmount(mmp)} a partir de la factura del ${formattedReturnDate}.`;
+      }
+
+      summaryTextPreview.textContent = summaryNote;
+    }
+
+    // Show Toast helper
+    function showToast(message) {
+      toastMessage.textContent = message;
+      toastNotification.classList.remove('translate-y-20', 'opacity-0');
+      toastNotification.classList.add('translate-y-0', 'opacity-100');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastNotification.classList.remove('translate-y-0', 'opacity-100');
+        toastNotification.classList.add('translate-y-20', 'opacity-0');
+      }, 2800);
+    }
+
+    // Copy to Clipboard with fallback for sandboxed iframes
+    async function copySummaryToClipboard() {
+      const textToCopy = summaryTextPreview.textContent.trim();
+      if (!textToCopy) return;
+
+      let copied = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(textToCopy);
+          copied = true;
+        }
+      } catch (err) {
+        copied = false;
+      }
+
+      if (!copied) {
+        const tempArea = document.createElement('textarea');
+        tempArea.value = textToCopy;
+        tempArea.style.position = 'fixed';
+        tempArea.style.left = '-9999px';
+        document.body.appendChild(tempArea);
+        tempArea.focus();
+        tempArea.select();
+        try {
+          document.execCommand('copy');
+          copied = true;
+        } catch (err) {
+          copied = false;
+        }
+        document.body.removeChild(tempArea);
+      }
+
+      if (copied) {
+        copyBtnIcon.textContent = '✅';
+        copyBtnText.textContent = '¡Resumen Copiado!';
+        showToast('Resumen copiado al portapapeles');
+        setTimeout(() => {
+          copyBtnIcon.textContent = '📋';
+          copyBtnText.textContent = 'Copiar Resumen';
+        }, 2000);
+      }
+    }
+
+    // Initialize default dates so the user sees a complete working calculation immediately
+    function setInitialDefaultDates() {
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+      const defaultDebtDate = addDays(today, -7);
+      const defaultStartDate = addDays(today, 7);
+      debtDateInput.value = toInputDateString(defaultDebtDate);
+      startDateInput.value = toInputDateString(defaultStartDate);
+    }
+
+    // Event Listeners
+    frequencySelect.addEventListener('change', () => {
+      populateSplitsDropdown();
+      calculateSplits();
+    });
+
+    splitsSelect.addEventListener('change', calculateSplits);
+    mmpInput.addEventListener('input', calculateSplits);
+    arrearsInput.addEventListener('input', calculateSplits);
+    debtDateInput.addEventListener('change', calculateSplits);
+    debtDateInput.addEventListener('input', calculateSplits);
+    startDateInput.addEventListener('change', calculateSplits);
+    startDateInput.addEventListener('input', calculateSplits);
+
+    copySummaryBtn.addEventListener('click', copySummaryToClipboard);
+
+    // Demo Scenario with extra intermediate invoice + Manager Approval toggle example
+    btnLoadDemo.addEventListener('click', () => {
+      frequencySelect.value = '14';
+      populateSplitsDropdown();
+      splitsSelect.value = '3';
+      mmpInput.value = '180.00';
+      arrearsInput.value = '360.00';
+
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+      // Debt date 10 days ago, start date 12 days from today -> total 22 days gap (> 14d cycle + 2d grace), generating 1 extra invoice!
+      debtDateInput.value = toInputDateString(addDays(today, -10));
+      startDateInput.value = toInputDateString(addDays(today, 12));
+
+      calculateSplits();
+      showToast('Ejemplo con factura intermedia cargado');
+    });
+
+    // Reset button
+    btnReset.addEventListener('click', () => {
+      frequencySelect.value = '14';
+      populateSplitsDropdown();
+      mmpInput.value = '150.00';
+      arrearsInput.value = '300.00';
+      setInitialDefaultDates();
+      calculateSplits();
+      showToast('Valores restablecidos por defecto');
+    });
+
+    // Boot
+    populateSplitsDropdown();
+    setInitialDefaultDates();
+    calculateSplits();
+  </script>
+</body>
+</html>
