@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PA Split Calculator</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #04060d;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Fullscreen Canvas for Continuous Slow Multi-Color Dark Bokeh Lights */
+    #ambientCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      filter: blur(75px) saturate(135%);
+      opacity: 0.85;
+    }
+
+    /* Subtle dark vignette overlay to keep contrast crisp */
+    .ambient-vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, rgba(4, 6, 13, 0.15) 0%, rgba(4, 6, 13, 0.72) 100%);
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.8) brightness(0.9);
+      cursor: pointer;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #04060d;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="text-slate-100 font-sans antialiased selection:bg-sky-500/30 selection:text-sky-200 flex items-center justify-center p-3 sm:p-6">
+
+  <!-- Continuous Slow Moving Blurred Dark Lights Canvas (Works even if OS Reduced Motion is ON) -->
+  <canvas id="ambientCanvas" aria-hidden="true"></canvas>
+  <div class="ambient-vignette" aria-hidden="true"></div>
+
+  <!-- Subtle Copy / Action Toast -->
+  <div id="toastNotification" class="fixed bottom-4 right-4 z-50 transform translate-y-16 opacity-0 pointer-events-none transition-all duration-200 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-900/95 border border-emerald-500/40 text-emerald-300 text-xs font-mono shadow-xl backdrop-blur-md">
+    <span id="toastIcon">✓</span>
+    <span id="toastMessage">Copied to clipboard</span>
+  </div>
+
+  <!-- Main Compact Dashboard Container -->
+  <main class="relative z-10 w-full max-w-3xl bg-slate-900/80 border border-slate-800/90 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
+    
+    <!-- Minimal Top Bar -->
+    <header class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-slate-950/75 border-b border-slate-800/80">
+      <div class="flex items-center gap-2.5">
+        <div class="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.85)]"></div>
+        <h1 class="text-sm font-semibold tracking-wide uppercase text-slate-200">
+          PA Split Calculator
+        </h1>
+        <span id="saveStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900/90 text-slate-400 border border-slate-800" title="Auto-saves last PA to browser cookies & local storage">
+          <span id="saveDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span id="saveStatusText">Auto-saved</span>
+        </span>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button
+          id="btnSyncToday"
+          type="button"
+          title="Snap Last Unpaid Date to Today and Start Date to +1 Frequency Cycle"
+          class="px-2.5 py-1 rounded-md text-xs font-medium text-sky-300 hover:text-white bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 transition-colors"
+        >
+          📅 Sync Today
+        </button>
+        <button
+          id="btnReset"
+          type="button"
+          title="Clear saved cookie & reset to today's defaults"
+          class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-400 hover:text-rose-300 bg-slate-900 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-500/30 transition-colors"
+        >
+          Reset
+        </button>
+      </div>
+    </header>
+
+    <div class="p-5 space-y-4">
+      
+      <!-- 3x2 Ultra-Compact Input Grid (Zero Fluff) -->
+      <form id="splitCalculatorForm" class="grid grid-cols-1 sm:grid-cols-3 gap-3.5" onsubmit="return false;">
+        
+        <!-- 1. Frequency -->
+        <div>
+          <label for="frequencySelect" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Frequency
+          </label>
+          <select
+            id="frequencySelect"
+            class="w-full rounded-lg bg-slate-950/90 border border-slate-800 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+          >
+            <option value="7">Weekly (7d)</option>
+            <option value="14" selected>Fortnightly (14d)</option>
+            <option value="28">Monthly (4w / 28d)</option>
+          </select>
+        </div>
+
+        <!-- 2. Number of Splits -->
+        <div>
+          <label for="splitsSelect" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Number of Splits
+          </label>
+          <select
+            id="splitsSelect"
+            class="w-full rounded-lg bg-slate-950/90 border border-slate-800 px-3 py-2 text-sm font-mono text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+          >
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <!-- 3. Regular MMP ($) -->
+        <div>
+          <label for="mmpInput" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Regular MMP ($)
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 font-mono text-sm pointer-events-none">$</span>
+            <input
+              id="mmpInput"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value="37.45"
+              class="w-full rounded-lg bg-slate-950/90 border border-slate-800 pl-7 pr-3 py-2 text-sm font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+            />
+          </div>
+        </div>
+
+        <!-- 4. Current Arrears ($) -->
+        <div>
+          <label for="arrearsInput" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Current Arrears ($)
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 font-mono text-sm pointer-events-none">$</span>
+            <input
+              id="arrearsInput"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value="37.44"
+              class="w-full rounded-lg bg-slate-950/90 border border-slate-800 pl-7 pr-3 py-2 text-sm font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+            />
+          </div>
+        </div>
+
+        <!-- 5. Last Unpaid Date -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label for="debtDateInput" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Last Unpaid Date
+            </label>
+            <div class="flex items-center gap-1">
+              <button type="button" id="btnDebtToday" title="Set to Today" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Today</button>
+            </div>
+          </div>
+          <input
+            id="debtDateInput"
+            type="date"
+            class="w-full rounded-lg bg-slate-950/90 border border-slate-800 px-3 py-2 text-sm font-mono text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+          />
+        </div>
+
+        <!-- 6. Start Date + Quick Chips -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label for="startDateInput" class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Start Date
+            </label>
+            <div class="flex items-center gap-1">
+              <button type="button" id="btnStartToday" title="Start Today" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Today</button>
+              <button type="button" id="btnStartPlus7" title="+1 cycle from Last Unpaid Date" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 transition">+14d</button>
+              <button type="button" id="btnStartPlus14" title="+2 cycles from Last Unpaid Date" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 transition">+28d</button>
+            </div>
+          </div>
+          <input
+            id="startDateInput"
+            type="date"
+            class="w-full rounded-lg bg-slate-950/90 border border-slate-800 px-3 py-2 text-sm font-mono text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+          />
+        </div>
+
+      </form>
+
+      <!-- Audit Validation Alerts (Discreet, only visible on date/weekend anomalies) -->
+      <div id="validationAlertsRow" class="hidden flex-wrap items-center gap-2">
+        <div id="dateOrderAlert" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-mono">
+          <span>⚠️ Start Date cannot be earlier than Last Unpaid Date</span>
+        </div>
+        <div id="weekendAlert" class="hidden items-center gap-2 px-2.5 py-1 rounded-md bg-amber-500/15 border border-amber-500/35 text-amber-300 text-xs font-mono">
+          <span id="weekendAlertText">⚠️ Start Date falls on a weekend</span>
+          <button
+            id="btnSnapMonday"
+            type="button"
+            class="px-2 py-0.5 rounded bg-amber-500/25 hover:bg-amber-500/40 text-amber-100 font-sans font-semibold text-[11px] transition"
+          >
+            Snap to Mon ↵
+          </button>
+        </div>
+      </div>
+
+      <!-- Cold Numeric Output Readout Panel + Single Tabbed Note Box -->
+      <section class="rounded-xl bg-slate-950/90 border border-slate-800/90 p-4 space-y-3">
+        
+        <!-- Primary Data Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-sm">
+            <div>
+              <span class="text-slate-400 text-xs uppercase font-sans font-semibold mr-1.5">New Installment:</span>
+              <span id="newInstallmentDisplay" class="text-lg font-bold text-sky-400">$0.00</span>
+            </div>
+
+            <span class="text-slate-700 hidden sm:inline">|</span>
+
+            <div>
+              <span class="text-slate-400 text-xs uppercase font-sans font-semibold mr-1.5">Return Date:</span>
+              <span id="returnDateDisplay" class="text-slate-200 font-semibold">--/--/----</span>
+            </div>
+
+            <!-- Extra Invoices Detected (Strictly shown only if > 0) -->
+            <div id="extraInvoicesSegment" class="hidden items-center gap-2">
+              <span class="text-slate-700 hidden sm:inline">|</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-mono" id="extraInvoicesTooltip">
+                Extra Invoices Detected: <strong id="extraInvoicesCountDisplay" class="ml-1">0</strong>
+              </span>
+            </div>
+          </div>
+
+          <!-- Discreet Requires Approval Badge (Only shown when Manager Approval is required) -->
+          <span
+            id="approvalBadge"
+            class="hidden items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/40"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+            Requires Approval
+          </span>
+        </div>
+
+        <!-- Projected Dates Line -->
+        <div class="font-mono text-xs sm:text-sm flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span class="text-slate-400 text-xs uppercase font-sans font-semibold shrink-0">Dates:</span>
+          <span id="projectedDatesLine" class="text-slate-200 break-words">--/--/----</span>
+        </div>
+
+        <!-- Single Compact Note Box with 4 Format Tabs & Header Copy Button (Never stretches vertically) -->
+        <div class="pt-2 space-y-2">
+          <!-- Compact Tabs + Fixed-Height Copy Button Row -->
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="inline-flex flex-wrap rounded-lg bg-slate-900 p-0.5 border border-slate-800/90" role="tablist">
+              <button
+                type="button"
+                id="tabBtnSalesforce"
+                data-tab="salesforce"
+                class="note-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors bg-sky-600 text-white shadow-sm"
+              >
+                Salesforce Note
+              </button>
+              <button
+                type="button"
+                id="tabBtnPaTool"
+                data-tab="patool"
+                class="note-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors text-slate-400 hover:text-slate-200"
+              >
+                PA Tool Comment
+              </button>
+              <button
+                type="button"
+                id="tabBtnSms"
+                data-tab="sms"
+                class="note-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors text-slate-400 hover:text-slate-200"
+              >
+                SMS
+              </button>
+              <button
+                type="button"
+                id="tabBtnEmail"
+                data-tab="email"
+                class="note-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors text-slate-400 hover:text-slate-200"
+              >
+                Email
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2.5 ml-auto">
+              <span id="activeTabHint" class="text-[10px] font-mono text-slate-500 hidden md:inline">Alt+1..4 • Alt+C</span>
+              <button
+                id="copySummaryBtn"
+                type="button"
+                title="Copy active tab output (Shortcut: Alt+C)"
+                class="h-8 px-3.5 rounded-lg font-semibold text-xs bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white transition-colors inline-flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+              >
+                <span id="copyBtnIcon">📋</span>
+                <span id="copyBtnText">Copy Note</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Full-Width Dynamic Note Container -->
+          <div
+            id="summaryTextPreview"
+            class="w-full rounded-lg bg-slate-900/90 border border-slate-800/90 px-3.5 py-2.5 text-xs sm:text-sm font-mono text-slate-200 select-all leading-relaxed whitespace-pre-line"
+          >
+            PA set: --
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Recent Copied PAs Mini-History (Persisted in Cookie/Storage) -->
+      <div id="recentHistorySection" class="hidden pt-1 border-t border-slate-800/60">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Recent Copied Notes (Click to Copy)</span>
+          <button id="btnClearHistory" type="button" class="text-[10px] text-slate-500 hover:text-slate-300 transition">Clear</button>
+        </div>
+        <div id="recentHistoryList" class="space-y-1"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // --- Continuous Slow Multi-Color Ambient Dark Background Engine (JS Canvas) ---
+    (function initAmbientBackground() {
+      const canvas = document.getElementById('ambientCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let width = (canvas.width = window.innerWidth);
+      let height = (canvas.height = window.innerHeight);
+
+      window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      });
+
+      // Rich dark multi-color palette: Deep Cyan, Royal Indigo, DarkViolet/Plum, Emerald Teal, Crimson/Magenta Rose, Midnight Blue
+      const orbs = [
+        { x: 0.18, y: 0.22, vx: 0.00028, vy: 0.00021, rRatio: 0.42, color: 'rgba(14, 165, 233, 0.42)' },   // Sky Cyan
+        { x: 0.82, y: 0.25, vx: -0.00024, vy: 0.00029, rRatio: 0.45, color: 'rgba(99, 102, 241, 0.38)' },  // Royal Indigo
+        { x: 0.50, y: 0.78, vx: 0.00031, vy: -0.00025, rRatio: 0.44, color: 'rgba(168, 85, 247, 0.32)' },  // Deep Violet
+        { x: 0.22, y: 0.75, vx: -0.00022, vy: -0.00027, rRatio: 0.38, color: 'rgba(16, 185, 129, 0.28)' }, // Dark Emerald Teal
+        { x: 0.78, y: 0.72, vx: -0.00029, vy: 0.00019, rRatio: 0.36, color: 'rgba(236, 72, 153, 0.24)' }   // Subtle Dark Rose/Magenta
+      ];
+
+      function renderAmbientFrame() {
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#04060d';
+        ctx.fillRect(0, 0, width, height);
+
+        const minDim = Math.max(width, height);
+
+        for (let i = 0; i < orbs.length; i++) {
+          const o = orbs[i];
+          o.x += o.vx;
+          o.y += o.vy;
+
+          // Smooth bounce at screen bounds
+          if (o.x < 0.05 || o.x > 0.95) o.vx *= -1;
+          if (o.y < 0.05 || o.y > 0.95) o.vy *= -1;
+
+          const cx = o.x * width;
+          const cy = o.y * height;
+          const radius = minDim * o.rRatio;
+
+          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+          grad.addColorStop(0, o.color);
+          grad.addColorStop(1, 'rgba(4, 6, 13, 0)');
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        requestAnimationFrame(renderAmbientFrame);
+      }
+
+      requestAnimationFrame(renderAmbientFrame);
+    })();
+
+    const COOKIE_NAME = 'au_pa_calc_state_v3';
+    const HISTORY_KEY = 'au_pa_calc_history_v3';
+    const COOKIE_EXPIRY_DAYS = 30;
+
+    // Dynamic Split Rules per Frequency
+    // Monthly is strictly 28 days (4 weeks) per AU Collections standard (e.g. 12/11 -> 10/12)
+    const SPLIT_RULES = {
+      "7": {
+        label: "weekly",
+        cycleDays: 7,
+        defaultSplits: 3,
+        min: 2,
+        max: 12,
+        standardMax: 8
+      },
+      "14": {
+        label: "fortnightly",
+        cycleDays: 14,
+        defaultSplits: 3,
+        min: 2,
+        max: 6,
+        standardMax: 4
+      },
+      "28": {
+        label: "monthly",
+        cycleDays: 28,
+        defaultSplits: 2,
+        min: 1,
+        max: 4,
+        standardMax: 2
+      }
+    };
+
+    // DOM Elements
+    const frequencySelect = document.getElementById('frequencySelect');
+    const splitsSelect = document.getElementById('splitsSelect');
+    const mmpInput = document.getElementById('mmpInput');
+    const arrearsInput = document.getElementById('arrearsInput');
+    const debtDateInput = document.getElementById('debtDateInput');
+    const startDateInput = document.getElementById('startDateInput');
+
+    const btnDebtToday = document.getElementById('btnDebtToday');
+    const btnStartToday = document.getElementById('btnStartToday');
+    const btnStartPlus7 = document.getElementById('btnStartPlus7');
+    const btnStartPlus14 = document.getElementById('btnStartPlus14');
+    const btnSyncToday = document.getElementById('btnSyncToday');
+    const btnReset = document.getElementById('btnReset');
+    const btnSnapMonday = document.getElementById('btnSnapMonday');
+
+    const saveStatusText = document.getElementById('saveStatusText');
+    const saveDot = document.getElementById('saveDot');
+
+    const validationAlertsRow = document.getElementById('validationAlertsRow');
+    const dateOrderAlert = document.getElementById('dateOrderAlert');
+    const weekendAlert = document.getElementById('weekendAlert');
+    const weekendAlertText = document.getElementById('weekendAlertText');
+
+    const newInstallmentDisplay = document.getElementById('newInstallmentDisplay');
+    const returnDateDisplay = document.getElementById('returnDateDisplay');
+    const extraInvoicesSegment = document.getElementById('extraInvoicesSegment');
+    const extraInvoicesCountDisplay = document.getElementById('extraInvoicesCountDisplay');
+    const extraInvoicesTooltip = document.getElementById('extraInvoicesTooltip');
+    const approvalBadge = document.getElementById('approvalBadge');
+    const projectedDatesLine = document.getElementById('projectedDatesLine');
+
+    const tabButtons = document.querySelectorAll('.note-tab-btn');
+    const summaryTextPreview = document.getElementById('summaryTextPreview');
+    const copySummaryBtn = document.getElementById('copySummaryBtn');
+    const copyBtnIcon = document.getElementById('copyBtnIcon');
+    const copyBtnText = document.getElementById('copyBtnText');
+
+    const recentHistorySection = document.getElementById('recentHistorySection');
+    const recentHistoryList = document.getElementById('recentHistoryList');
+    const btnClearHistory = document.getElementById('btnClearHistory');
+
+    const toastNotification = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+
+    let toastTimer = null;
+    let isInvalidDateOrder = false;
+    let activeTab = 'salesforce';
+    let generatedNotes = {
+      salesforce: '',
+      patool: '',
+      sms: '',
+      email: ''
+    };
+
+    // --- Cookie & Dual Persistence Utilities ---
+    function setCookieState(key, valueObj, days) {
+      const jsonStr = JSON.stringify(valueObj);
+      const encoded = encodeURIComponent(jsonStr);
+      const d = new Date();
+      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+      const expires = "expires=" + d.toUTCString();
+      try {
+        document.cookie = `${key}=${encoded};${expires};path=/;SameSite=Lax`;
+      } catch (e) {}
+      try {
+        localStorage.setItem(key, jsonStr);
+      } catch (e) {}
+    }
+
+    function getCookieState(key) {
+      try {
+        const nameEQ = key + "=";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+          let c = ca[i].trim();
+          if (c.indexOf(nameEQ) === 0) {
+            const raw = decodeURIComponent(c.substring(nameEQ.length, c.length));
+            return JSON.parse(raw);
+          }
+        }
+      } catch (e) {}
+      try {
+        const fallback = localStorage.getItem(key);
+        if (fallback) return JSON.parse(fallback);
+      } catch (e) {
+        return null;
+      }
+      return null;
+    }
+
+    function clearCookieState(key) {
+      try {
+        document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`;
+      } catch (e) {}
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {}
+    }
+
+    // --- Date & Math Utilities (DST-safe noon anchor + exact cents rounding) ---
+    function getTodayNoon() {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+    }
+
+    function parseDateInput(dateStr) {
+      if (!dateStr) return null;
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return null;
+      const d = new Date(
+        parseInt(parts[0], 10),
+        parseInt(parts[1], 10) - 1,
+        parseInt(parts[2], 10),
+        12, 0, 0
+      );
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function toInputDateString(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDateAU(dateObj) {
+      if (!dateObj) return '--/--/----';
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const y = dateObj.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+
+    function addDays(dateObj, days) {
+      return new Date(
+        dateObj.getFullYear(),
+        dateObj.getMonth(),
+        dateObj.getDate() + days,
+        12, 0, 0
+      );
+    }
+
+    function roundCents(num) {
+      const val = Number.isFinite(num) ? num : 0;
+      return Math.round((val + Number.EPSILON) * 100) / 100;
+    }
+
+    function formatAmount(num) {
+      return roundCents(num).toFixed(2);
+    }
+
+    function getCurrentCycleDays() {
+      const rule = SPLIT_RULES[frequencySelect.value] || SPLIT_RULES["14"];
+      return rule.cycleDays;
+    }
+
+    // Update Quick Date Chip Labels on Start Date dynamically to match current Frequency (7d / 14d / 28d)
+    function updateQuickChipLabels() {
+      const cycleDays = getCurrentCycleDays();
+      btnStartPlus7.textContent = `+${cycleDays}d`;
+      btnStartPlus7.title = `+1 cycle (+${cycleDays} days) from Last Unpaid Date`;
+
+      btnStartPlus14.textContent = `+${cycleDays * 2}d`;
+      btnStartPlus14.title = `+2 cycles (+${cycleDays * 2} days) from Last Unpaid Date`;
+    }
+
+    // Populate dynamic Splits options based on selected Frequency
+    function populateSplitsDropdown(selectedVal) {
+      const freqKey = frequencySelect.value;
+      const rule = SPLIT_RULES[freqKey] || SPLIT_RULES["14"];
+      const targetVal = selectedVal ? parseInt(selectedVal, 10) : rule.defaultSplits;
+
+      splitsSelect.innerHTML = '';
+      for (let i = rule.min; i <= rule.max; i++) {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        const requiresApproval = i > rule.standardMax;
+        opt.textContent = requiresApproval ? `${i} Splits (Approval)` : `${i} ${i === 1 ? 'Split' : 'Splits'}`;
+        if (i === targetVal) {
+          opt.selected = true;
+        }
+        splitsSelect.appendChild(opt);
+      }
+      updateQuickChipLabels();
+    }
+
+    // Set dynamic dates anchored to Today and current Frequency cycle (+7d Weekly, +14d Fortnightly, +28d Monthly)
+    function applyFrequencySyncedDates(anchorToExistingDebtDate = false) {
+      const today = getTodayNoon();
+      const cycleDays = getCurrentCycleDays();
+      const baseDebtDate = (anchorToExistingDebtDate && parseDateInput(debtDateInput.value))
+        ? parseDateInput(debtDateInput.value)
+        : today;
+
+      if (!anchorToExistingDebtDate) {
+        debtDateInput.value = toInputDateString(today);
+      }
+      startDateInput.value = toInputDateString(addDays(baseDebtDate, cycleDays));
+    }
+
+    // Set active Note Tab (Salesforce / PA Tool / SMS / Email)
+    function setActiveTab(tabName, shouldPersist = true) {
+      if (!['salesforce', 'patool', 'sms', 'email'].includes(tabName)) {
+        tabName = 'salesforce';
+      }
+      activeTab = tabName;
+
+      tabButtons.forEach((btn) => {
+        const isCurrent = btn.getAttribute('data-tab') === activeTab;
+        if (isCurrent) {
+          btn.className = 'note-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors bg-sky-600 text-white shadow-sm';
+        } else {
+          btn.className = 'note-tab-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors text-slate-400 hover:text-slate-200';
+        }
+      });
+
+      renderActiveNotePreview();
+      if (shouldPersist) {
+        saveCurrentState();
+      }
+    }
+
+    function renderActiveNotePreview() {
+      if (isInvalidDateOrder) {
+        summaryTextPreview.textContent = 'Invalid date range: Start Date must be on or after Last Unpaid Date.';
+        return;
+      }
+      summaryTextPreview.textContent = generatedNotes[activeTab] || '';
+    }
+
+    // Save current form state to Cookie + localStorage
+    function saveCurrentState() {
+      const state = {
+        frequency: frequencySelect.value,
+        splits: splitsSelect.value,
+        mmp: mmpInput.value,
+        arrears: arrearsInput.value,
+        debtDate: debtDateInput.value,
+        startDate: startDateInput.value,
+        activeTab: activeTab,
+        savedAt: new Date().toISOString()
+      };
+      setCookieState(COOKIE_NAME, state, COOKIE_EXPIRY_DAYS);
+      saveStatusText.textContent = 'Saved to cookie';
+      saveDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+    }
+
+    // Load saved state from Cookie on startup, or initialize with Today's dynamic frequency dates
+    function loadInitialState() {
+      const saved = getCookieState(COOKIE_NAME);
+      if (saved && saved.frequency) {
+        // Migrate legacy "30" monthly key to "28" (4 weeks)
+        const normalizedFreq = saved.frequency === '30' ? '28' : saved.frequency;
+        if (SPLIT_RULES[normalizedFreq]) {
+          frequencySelect.value = normalizedFreq;
+          populateSplitsDropdown(saved.splits);
+          if (typeof saved.mmp === 'string') mmpInput.value = saved.mmp;
+          if (typeof saved.arrears === 'string') arrearsInput.value = saved.arrears;
+
+          const cycleDays = getCurrentCycleDays();
+          if (saved.debtDate && parseDateInput(saved.debtDate)) {
+            debtDateInput.value = saved.debtDate;
+          } else {
+            debtDateInput.value = toInputDateString(getTodayNoon());
+          }
+
+          if (saved.startDate && parseDateInput(saved.startDate)) {
+            startDateInput.value = saved.startDate;
+          } else {
+            const base = parseDateInput(debtDateInput.value) || getTodayNoon();
+            startDateInput.value = toInputDateString(addDays(base, cycleDays));
+          }
+
+          if (saved.activeTab) {
+            activeTab = saved.activeTab;
+          }
+          saveStatusText.textContent = 'Restored last PA';
+          return;
+        }
+      }
+
+      // Fresh visit: Default to Fortnightly (14d), 3 splits, and Today + 14d
+      frequencySelect.value = '14';
+      populateSplitsDropdown(3);
+      applyFrequencySyncedDates(false);
+      saveStatusText.textContent = 'Live Today Dates';
+    }
+
+    // Core Mathematical Engine + Edge-Case Audit Checks
+    function calculateSplits(shouldPersist = true) {
+      const freqKey = frequencySelect.value;
+      const rule = SPLIT_RULES[freqKey] || SPLIT_RULES["14"];
+      const cycleDays = rule.cycleDays;
+
+      const splits = parseInt(splitsSelect.value, 10) || rule.defaultSplits;
+      const requiresApproval = splits > rule.standardMax;
+
+      const mmp = Math.max(0, parseFloat(mmpInput.value) || 0);
+      const arrears = Math.max(0, parseFloat(arrearsInput.value) || 0);
+
+      const debtDate = parseDateInput(debtDateInput.value);
+      const startDate = parseDateInput(startDateInput.value);
+
+      // 1. Discreet Approval Badge
+      if (requiresApproval) {
+        approvalBadge.classList.remove('hidden');
+        approvalBadge.classList.add('inline-flex');
+      } else {
+        approvalBadge.classList.add('hidden');
+        approvalBadge.classList.remove('inline-flex');
+      }
+
+      // 2. Audit Checks: Date Order & Weekend Start Detection
+      isInvalidDateOrder = Boolean(debtDate && startDate && startDate < debtDate);
+      let isWeekendStart = false;
+      let weekendDayName = '';
+
+      if (startDate) {
+        const dayOfWeek = startDate.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          isWeekendStart = true;
+          weekendDayName = dayOfWeek === 0 ? 'Sunday' : 'Saturday';
+        }
+      }
+
+      if (isInvalidDateOrder || isWeekendStart) {
+        validationAlertsRow.classList.remove('hidden');
+        validationAlertsRow.classList.add('flex');
+      } else {
+        validationAlertsRow.classList.add('hidden');
+        validationAlertsRow.classList.remove('flex');
+      }
+
+      if (isInvalidDateOrder) {
+        dateOrderAlert.classList.remove('hidden');
+        dateOrderAlert.classList.add('inline-flex');
+      } else {
+        dateOrderAlert.classList.add('hidden');
+        dateOrderAlert.classList.remove('inline-flex');
+      }
+
+      if (isWeekendStart) {
+        weekendAlertText.textContent = `⚠️ Start Date falls on ${weekendDayName}`;
+        weekendAlert.classList.remove('hidden');
+        weekendAlert.classList.add('inline-flex');
+      } else {
+        weekendAlert.classList.add('hidden');
+        weekendAlert.classList.remove('inline-flex');
+      }
+
+      // 3. Intermediate Extra Invoices (2-day grace margin)
+      let extraInvoices = 0;
+      const extraDatesList = [];
+      if (debtDate && startDate && !isInvalidDateOrder) {
+        const cutoffDate = addDays(startDate, -2);
+        let nextCycle = addDays(debtDate, cycleDays);
+        let guard = 0;
+        while (nextCycle < cutoffDate && guard < 120) {
+          extraInvoices++;
+          extraDatesList.push(formatDateAU(nextCycle));
+          nextCycle = addDays(nextCycle, cycleDays);
+          guard++;
+        }
+      }
+
+      // 4. Exact Cents New Installment Calculation
+      const totalDebtToSplit = roundCents(arrears + (extraInvoices * mmp));
+      const splitPart = totalDebtToSplit / splits;
+      const newInstallment = roundCents(mmp + splitPart);
+
+      // 5. Projected Dates & Return Date
+      const projectedDates = [];
+      let returnDate = null;
+      if (startDate && !isInvalidDateOrder) {
+        for (let i = 0; i < splits; i++) {
+          projectedDates.push(addDays(startDate, i * cycleDays));
+        }
+        returnDate = addDays(startDate, splits * cycleDays);
+      }
+
+      // 6. Update Cold Numeric Panel
+      newInstallmentDisplay.textContent = `$${formatAmount(newInstallment)}`;
+      returnDateDisplay.textContent = returnDate ? formatDateAU(returnDate) : '--/--/----';
+
+      if (extraInvoices > 0) {
+        extraInvoicesCountDisplay.textContent = `${extraInvoices} (+$${formatAmount(extraInvoices * mmp)})`;
+        extraInvoicesTooltip.title = `Generated on: ${extraDatesList.join(', ')}`;
+        extraInvoicesSegment.classList.remove('hidden');
+        extraInvoicesSegment.classList.add('inline-flex');
+      } else {
+        extraInvoicesSegment.classList.add('hidden');
+        extraInvoicesSegment.classList.remove('inline-flex');
+      }
+
+      const datesListStr = projectedDates.length > 0
+        ? projectedDates.map(d => formatDateAU(d)).join(', ')
+        : '--/--/----';
+      projectedDatesLine.textContent = datesListStr;
+
+      // 7. Build All 4 Tabbed Templates (Salesforce, PA Tool, SMS, Email - Brand-neutral, no Credit24 prefix)
+      if (isInvalidDateOrder) {
+        copySummaryBtn.disabled = true;
+        copySummaryBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        copySummaryBtn.disabled = false;
+        copySummaryBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+        const firstDateStr = projectedDates.length > 0 ? formatDateAU(projectedDates[0]) : '--/--/----';
+        const returnDateStr = returnDate ? formatDateAU(returnDate) : '--/--/----';
+        const approvalSuffix = requiresApproval ? ' [Manager Approved]' : '';
+        const paymentWord = splits === 1 ? 'payment' : 'payments';
+
+        // Tab 1: Salesforce Note (Ultra-compact call note)
+        generatedNotes.salesforce = `PA set: ${splits} ${rule.label} ${paymentWord} of $${formatAmount(newInstallment)} starting ${firstDateStr} to bring account UTD. Returning to standard $${formatAmount(mmp)} MMP on ${returnDateStr}.${approvalSuffix}`;
+
+        // Tab 2: PA Tool Comment (Exact AU manual format for Salesforce PA Tool pop-up)
+        generatedNotes.patool = `PA of $${formatAmount(newInstallment)} ${rule.label} for ${splits} ${paymentWord}, starting ${firstDateStr}`;
+
+        // Tab 3: SMS Confirmation (Clean, brand-free text)
+        generatedNotes.sms = `Your payment arrangement is confirmed for ${splits} ${rule.label} ${paymentWord} of $${formatAmount(newInstallment)} on ${datesListStr}. Your regular $${formatAmount(mmp)} payment resumes on ${returnDateStr}.`;
+
+        // Tab 4: Email Confirmation (Clean customer breakdown)
+        const bulletDates = projectedDates.map((d, idx) => `• Split ${idx + 1}: $${formatAmount(newInstallment)} on ${formatDateAU(d)}`).join('\n');
+        generatedNotes.email = `Hi,\n\nAs discussed, your Payment Arrangement has been set up to bring your account up to date:\n\n• Arrangement: ${splits} ${rule.label} ${paymentWord} of $${formatAmount(newInstallment)}\n${bulletDates}\n\nYour standard minimum payment (MMP) of $${formatAmount(mmp)} will resume on ${returnDateStr}.`;
+      }
+
+      setActiveTab(activeTab, false);
+
+      if (shouldPersist) {
+        saveCurrentState();
+      }
+    }
+
+    // Recent Copied Notes History (Stored in Cookie/Storage)
+    function getHistoryList() {
+      const list = getCookieState(HISTORY_KEY);
+      return Array.isArray(list) ? list : [];
+    }
+
+    function pushToHistory(noteStr) {
+      if (!noteStr || noteStr.startsWith('Invalid')) return;
+      const singleLine = noteStr.replace(/\s+/g, ' ').trim();
+      let list = getHistoryList().filter(item => item !== singleLine);
+      list.unshift(singleLine);
+      list = list.slice(0, 3);
+      setCookieState(HISTORY_KEY, list, COOKIE_EXPIRY_DAYS);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const list = getHistoryList();
+      if (list.length === 0) {
+        recentHistorySection.classList.add('hidden');
+        return;
+      }
+      recentHistorySection.classList.remove('hidden');
+      recentHistoryList.innerHTML = '';
+      list.forEach((note) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'w-full text-left px-2.5 py-1.5 rounded bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/70 text-[11px] font-mono text-slate-400 hover:text-slate-200 truncate transition';
+        btn.textContent = note;
+        btn.title = 'Click to copy this note again';
+        btn.addEventListener('click', () => {
+          copyTextDirect(note, 'History note copied');
+        });
+        recentHistoryList.appendChild(btn);
+      });
+    }
+
+    function showToast(msg) {
+      toastMessage.textContent = msg;
+      toastNotification.classList.remove('translate-y-16', 'opacity-0');
+      toastNotification.classList.add('translate-y-0', 'opacity-100');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastNotification.classList.remove('translate-y-0', 'opacity-100');
+        toastNotification.classList.add('translate-y-16', 'opacity-0');
+      }, 2200);
+    }
+
+    async function copyTextDirect(text, toastLabel = 'Copied to clipboard') {
+      if (!text || isInvalidDateOrder) return false;
+
+      let copied = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        }
+      } catch (e) {
+        copied = false;
+      }
+
+      if (!copied) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+          document.execCommand('copy');
+          copied = true;
+        } catch (e) {
+          copied = false;
+        }
+        document.body.removeChild(ta);
+      }
+
+      if (copied) {
+        showToast(toastLabel);
+      }
+      return copied;
+    }
+
+    async function copyNoteToClipboard() {
+      const text = summaryTextPreview.textContent.trim();
+      const tabLabelMap = {
+        salesforce: 'Salesforce note copied',
+        patool: 'PA Tool comment copied',
+        sms: 'SMS template copied',
+        email: 'Email template copied'
+      };
+      const ok = await copyTextDirect(text, tabLabelMap[activeTab] || 'Note copied');
+      if (ok) {
+        pushToHistory(text);
+        copyBtnIcon.textContent = '✓';
+        copyBtnText.textContent = 'Copied';
+        setTimeout(() => {
+          copyBtnIcon.textContent = '📋';
+          copyBtnText.textContent = 'Copy Note';
+        }, 1600);
+      }
+    }
+
+    // Event Listeners for Inputs
+    frequencySelect.addEventListener('change', () => {
+      populateSplitsDropdown();
+      applyFrequencySyncedDates(true);
+      calculateSplits(true);
+    });
+
+    splitsSelect.addEventListener('change', () => calculateSplits(true));
+    mmpInput.addEventListener('input', () => calculateSplits(true));
+    arrearsInput.addEventListener('input', () => calculateSplits(true));
+    debtDateInput.addEventListener('change', () => calculateSplits(true));
+    debtDateInput.addEventListener('input', () => calculateSplits(true));
+    startDateInput.addEventListener('change', () => calculateSplits(true));
+    startDateInput.addEventListener('input', () => calculateSplits(true));
+    copySummaryBtn.addEventListener('click', copyNoteToClipboard);
+
+    // Tab clicks
+    tabButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setActiveTab(btn.getAttribute('data-tab'), true);
+      });
+    });
+
+    // Snap Start Date to next Monday when it falls on Saturday/Sunday
+    btnSnapMonday.addEventListener('click', () => {
+      const startDate = parseDateInput(startDateInput.value);
+      if (!startDate) return;
+      const day = startDate.getDay();
+      if (day === 6) {
+        startDateInput.value = toInputDateString(addDays(startDate, 2));
+      } else if (day === 0) {
+        startDateInput.value = toInputDateString(addDays(startDate, 1));
+      }
+      calculateSplits(true);
+      showToast('Snapped Start Date to Monday');
+    });
+
+    // Quick Date Offset Chips
+    btnDebtToday.addEventListener('click', () => {
+      debtDateInput.value = toInputDateString(getTodayNoon());
+      calculateSplits(true);
+    });
+
+    btnStartToday.addEventListener('click', () => {
+      startDateInput.value = toInputDateString(getTodayNoon());
+      calculateSplits(true);
+    });
+
+    btnStartPlus7.addEventListener('click', () => {
+      const cycleDays = getCurrentCycleDays();
+      const base = parseDateInput(debtDateInput.value) || getTodayNoon();
+      startDateInput.value = toInputDateString(addDays(base, cycleDays));
+      calculateSplits(true);
+    });
+
+    btnStartPlus14.addEventListener('click', () => {
+      const cycleDays = getCurrentCycleDays();
+      const base = parseDateInput(debtDateInput.value) || getTodayNoon();
+      startDateInput.value = toInputDateString(addDays(base, cycleDays * 2));
+      calculateSplits(true);
+    });
+
+    // Sync Today button
+    btnSyncToday.addEventListener('click', () => {
+      applyFrequencySyncedDates(false);
+      calculateSplits(true);
+      showToast(`Synced to Today (+${getCurrentCycleDays()}d cycle)`);
+    });
+
+    // Reset button
+    btnReset.addEventListener('click', () => {
+      clearCookieState(COOKIE_NAME);
+      frequencySelect.value = '14';
+      populateSplitsDropdown(3);
+      mmpInput.value = '';
+      arrearsInput.value = '';
+      applyFrequencySyncedDates(false);
+      calculateSplits(false);
+      saveStatusText.textContent = 'Reset (Today)';
+      showToast('Cookie cleared & reset to Today');
+    });
+
+    btnClearHistory.addEventListener('click', () => {
+      clearCookieState(HISTORY_KEY);
+      renderHistory();
+      showToast('History cleared');
+    });
+
+    // Keyboard shortcuts: Alt+C to copy, Alt+1..4 to switch tabs
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        copyNoteToClipboard();
+      } else if (e.altKey && e.key === '1') {
+        e.preventDefault();
+        setActiveTab('salesforce', true);
+      } else if (e.altKey && e.key === '2') {
+        e.preventDefault();
+        setActiveTab('patool', true);
+      } else if (e.altKey && e.key === '3') {
+        e.preventDefault();
+        setActiveTab('sms', true);
+      } else if (e.altKey && e.key === '4') {
+        e.preventDefault();
+        setActiveTab('email', true);
+      }
+    });
+
+    // Initial Boot
+    loadInitialState();
+    calculateSplits(false);
+    renderHistory();
+  </script>
+</body>
+</html>
